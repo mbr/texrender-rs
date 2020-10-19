@@ -1,9 +1,33 @@
+//! LaTeX-rendering
+//!
+//! A thin wrapper around external tools like `latexmk`. See `TexRender` for details.
+
 use std::{
     ffi::{OsStr, OsString},
     fs, io, path, process,
 };
 use thiserror::Error;
 
+/// LaTeX-rendering command.
+///
+/// Creating a new rendering command usually starts by supplying a LaTeX-document, either via
+/// `from_bytes` or `from_file`. Other options can be set through the various builder methods.
+///
+/// Once satisfied, the `render` method will perform the call to the external TeX-engine and return
+/// a rendered PDF as raw bytes.
+///
+/// # TEXINPUTS
+///
+/// The search path for classes, includes or other files used in TeX can be extended using the
+/// `TEXINPUTS` environment variable; `TexRender` sets this variable when rendering. See
+/// `add_texinput` for details.
+///
+/// # Assets
+///
+/// Instead of adding a folder to `TEXINPUTS`, any sort of external file can be added as an asset.
+/// Assets are stored in a temporary folder that lives as long as the `TexRender` instance, the
+/// folder will automatically be added to `TEXINPUTS` when rendering. See the `add_asset_*`
+/// functions for details.
 #[derive(Debug)]
 pub struct TexRender {
     /// Content to render.
