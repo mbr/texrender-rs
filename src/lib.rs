@@ -131,6 +131,12 @@ impl TexRender {
         self
     }
 
+    /// Sets the path of `latexmk`.
+    pub fn latex_mk_path<P: Into<path::PathBuf>>(&mut self, latex_mk_path: P) -> &mut Self {
+        self.latex_mk_path = latex_mk_path.into();
+        self
+    }
+
     /// Render the given source as PDF.
     pub fn render(&self) -> Result<Vec<u8>, RenderingError> {
         let tmp = tempdir::TempDir::new("texrender").map_err(RenderingError::TempdirCreation)?;
