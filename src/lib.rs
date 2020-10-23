@@ -2,6 +2,8 @@
 //!
 //! A thin wrapper around external tools like `latexmk`. See `TexRender` for details.
 
+mod tpl;
+
 use std::{
     ffi::{OsStr, OsString},
     fs, io, path, process,
