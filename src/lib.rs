@@ -1,6 +1,8 @@
 //! LaTeX-rendering
 //!
 //! A thin wrapper around external tools like `latexmk`. See `TexRender` for details.
+//!
+//! Also supports generation of LaTeX documents, see the `tpl` module.
 
 pub mod tex_escape;
 pub mod tpl;
