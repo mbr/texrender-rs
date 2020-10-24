@@ -74,9 +74,14 @@ use std::fmt::Debug;
 use std::io::Write;
 use std::{io, string};
 
+/// Renderable Tex element.
 pub trait TexElement: Debug {
+    /// Writes a rendering of the element to the given writer.
     fn write_tex(&self, writer: &mut dyn Write) -> io::Result<()>;
 
+    /// Renders the element into a string.
+    ///
+    /// May return an error if a non-utf8 element has been given.
     fn render(&self) -> Result<String, string::FromUtf8Error> {
         let mut buffer: Vec<u8> = Vec::new();
         self.write_tex(&mut buffer)
@@ -85,12 +90,25 @@ pub trait TexElement: Debug {
     }
 }
 
+/// A raw, unescaped piece of tex code.
+///
+/// Tex is not guaranteed to be UTF-8 encoded, thus `RawTex` internally keeps bytes. The value will
+/// be inserted into the document without any escaping. The value is unchecked, thus it is possible
+/// to create syntactically incorrect invalid documents using this element.
 #[derive(Debug)]
 pub struct RawTex(Vec<u8>);
 
 impl RawTex {
+    /// Crates a new raw tex element from a string.
+    #[inline]
     pub fn new<S: Into<String>>(raw: S) -> Self {
         RawTex(raw.into().into_bytes())
+    }
+
+    /// Crates a new raw tex element from a bytes.
+    #[inline]
+    pub fn new_bytes(raw: Vec<u8>) -> Self {
+        RawTex(raw)
     }
 }
 
@@ -100,10 +118,14 @@ impl TexElement for RawTex {
     }
 }
 
+/// A text string.
+///
+/// Text strings will be escaped before insertion.
 #[derive(Debug)]
 pub struct Text(String);
 
 impl Text {
+    /// Creates a new text string.
     pub fn new<S: Into<String>>(raw: S) -> Self {
         Text(raw.into())
     }
@@ -112,8 +134,7 @@ impl Text {
 impl TexElement for Text {
     fn write_tex(&self, writer: &mut dyn Write) -> io::Result<()> {
         // TODO: Escape.
-        writer.write_all(self.0.as_bytes());
-        Ok(())
+        writer.write_all(self.0.as_bytes())
     }
 }
 
