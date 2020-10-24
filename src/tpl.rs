@@ -21,7 +21,7 @@
 //! contents.push(Box::new(MacroCall::new(RawTex::new("section"),
 //!                        Default::default(),
 //!                        Args::new(&["Hello, world"]))));
-//! contents.push(Box::new(Text::new("This is Tex.")));
+//! contents.push(Box::new(Text::new("This is fun & easy.")));
 //! let document = BeginEndBlock::new("document", Default::default(), Default::default(), contents);
 //! let tex = Group::new(vec![Box::new(doctype) as Box<dyn TexElement>, Box::new(document)]);
 //! let output = tex.render().expect("rendering failed");
@@ -29,7 +29,7 @@
 //!            "\\documentclass[12pt]{article}\n\
 //!             \\begin{document}\n\
 //!             \\section{Hello, world}\n\
-//!             This is Tex.\n\
+//!             This is fun \\& easy.\n\
 //!             \\end{document}\n");
 //! ```
 //!
@@ -47,7 +47,7 @@
 //!     documentclass(N, "article"),
 //!     document(elems!(
 //!         section("Hello, world"),
-//!         t("This is Tex.")
+//!         t("This is fun & easy.")
 //!     ))
 //! ));
 //!
@@ -57,7 +57,7 @@
 //!            "\\documentclass{article}\n\
 //!             \\begin{document}\n\
 //!             \\section{Hello, world}\n\
-//!             This is Tex.\n\
+//!             This is fun \\& easy.\n\
 //!             \\end{document}\n");
 //! ```
 //!
