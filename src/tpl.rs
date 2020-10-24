@@ -90,6 +90,21 @@ pub trait TexElement: Debug {
     }
 }
 
+/// Writes a list of tex elements to a stream with a separator.
+fn write_list<'a, I>(writer: &mut dyn Write, separator: &str, iter: I) -> io::Result<()>
+where
+    I: Iterator<Item = &'a Box<dyn TexElement>> + 'a,
+{
+    for (idx, arg) in iter.enumerate() {
+        if idx != 0 {
+            writer.write_all(separator.as_bytes())?;
+        }
+        arg.write_tex(writer)?;
+    }
+
+    Ok(())
+}
+
 /// A raw, unescaped piece of tex code.
 ///
 /// Tex is not guaranteed to be UTF-8 encoded, thus `RawTex` internally keeps bytes. The value will
@@ -126,6 +141,7 @@ pub struct Text(String);
 
 impl Text {
     /// Creates a new text string.
+    #[inline]
     pub fn new<S: Into<String>>(raw: S) -> Self {
         Text(raw.into())
     }
@@ -137,10 +153,18 @@ impl TexElement for Text {
     }
 }
 
+/// A set of optional arguments.
+///
+/// Optional arguments in LaTeX are typically denoted using square brackets and comma-separated.
 #[derive(Debug, Default)]
 pub struct OptArgs(Vec<Box<dyn TexElement>>);
 
 impl OptArgs {
+    /// Creates a new set of optional arguments.
+    ///
+    /// This is a higher level convenience functions that accepts iterables of strings, see
+    /// `new_from_elements` for a lower-level one.
+    #[inline]
     pub fn new<S: AsRef<str>, I: IntoIterator<Item = S>>(args: I) -> Self {
         Self::new_from_elements(
             args.into_iter()
@@ -149,23 +173,11 @@ impl OptArgs {
         )
     }
 
+    /// Crates a new set of optional arguments.
+    #[inline]
     fn new_from_elements(elements: Vec<Box<dyn TexElement>>) -> Self {
         OptArgs(elements)
     }
-}
-
-fn write_list<'a, I>(writer: &mut dyn Write, separator: &str, iter: I) -> io::Result<()>
-where
-    I: Iterator<Item = &'a Box<dyn TexElement>> + 'a,
-{
-    for (idx, arg) in iter.enumerate() {
-        if idx != 0 {
-            writer.write_all(b",")?;
-        }
-        arg.write_tex(writer)?;
-    }
-
-    Ok(())
 }
 
 impl TexElement for OptArgs {
@@ -180,10 +192,19 @@ impl TexElement for OptArgs {
     }
 }
 
+/// A set of arguments.
+///
+/// Each argument is enclosed by curly braces when rendered, otherwise arguments are just
+/// concatenated.
 #[derive(Debug, Default)]
 pub struct Args(Vec<Box<dyn TexElement>>);
 
 impl Args {
+    /// Creates a new set of arguments.
+    ///
+    /// This is a higher level convenience functions that accepts iterables of strings, see
+    /// `new_from_elements` for a lower-level one.
+    #[inline]
     pub fn new<S: AsRef<str>, I: IntoIterator<Item = S>>(args: I) -> Self {
         Self::new_from_elements(
             args.into_iter()
@@ -192,6 +213,8 @@ impl Args {
         )
     }
 
+    /// Crates a new set of arguments.
+    #[inline]
     fn new_from_elements(elements: Vec<Box<dyn TexElement>>) -> Self {
         Args(elements)
     }
@@ -211,7 +234,7 @@ impl TexElement for Args {
 
 /// A TeX-macro invocation.
 ///
-/// Typically
+/// This is the typical `\macroname[opt1]{arg1}{arg2}` call that is common in latex documents.
 #[derive(Debug)]
 pub struct MacroCall {
     /// Name of the instruction.
@@ -225,6 +248,9 @@ pub struct MacroCall {
 }
 
 impl MacroCall {
+    /// Creates a new macro call.
+    ///
+    /// The resulting call will end with a newline when output.
     pub fn new(ident: RawTex, opt_args: OptArgs, args: Args) -> Self {
         MacroCall {
             ident,
@@ -234,6 +260,9 @@ impl MacroCall {
         }
     }
 
+    /// Creates a new inline macro call.
+    ///
+    /// Does not end with a newline.
     pub fn new_inline(ident: RawTex, opt_args: OptArgs, args: Args) -> Self {
         MacroCall {
             ident,
@@ -260,8 +289,6 @@ impl TexElement for MacroCall {
 /// A block with a begin and end instruction.
 ///
 /// Begin-end blocks usually start with a `\begin{blockname}` and end with `\end{blockname}`.
-///
-/// The supports optional and mandatory arguments, as well as child elements.
 #[derive(Debug)]
 pub struct BeginEndBlock {
     /// The opening instruction, typically `\begin{blockname}`.
@@ -273,6 +300,7 @@ pub struct BeginEndBlock {
 }
 
 impl BeginEndBlock {
+    /// Creates a new begin/end block.
     pub fn new<S: Into<String>>(
         ident: S,
         opt_args: OptArgs,
@@ -321,8 +349,18 @@ impl TexElement for BeginEndBlock {
     }
 }
 
+/// An anonymous block.
+///
+/// Anonymous blocks are other elements enclosed in curly braces when output.
 #[derive(Debug)]
 pub struct AnonymousBlock(Vec<Box<dyn TexElement>>);
+
+impl AnonymousBlock {
+    /// Creates a new anonymous block.
+    pub fn new(elems: Vec<Box<dyn TexElement>>) -> Self {
+        AnonymousBlock(elems)
+    }
+}
 
 impl TexElement for AnonymousBlock {
     fn write_tex(&self, writer: &mut dyn Write) -> io::Result<()> {
@@ -335,10 +373,15 @@ impl TexElement for AnonymousBlock {
     }
 }
 
+/// Grouping of elements.
+///
+/// Groups multiple elements together; when output they are written in order, without any characters
+/// added.
 #[derive(Debug)]
 pub struct Group(Vec<Box<dyn TexElement>>);
 
 impl Group {
+    /// Creates a new group.
     pub fn new(elems: Vec<Box<dyn TexElement>>) -> Self {
         Group(elems)
     }
