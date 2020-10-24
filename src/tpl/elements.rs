@@ -1,19 +1,42 @@
-// HIGHER LAYER BELOW
+use super::{Args, BeginEndBlock, Group, MacroCall, OptArgs, RawTex, TexElement, Text};
 
-fn root(children: Vec<Box<dyn TexElement>>) -> Group {
-    Group(children)
-}
+#[derive(Copy, Clone, Debug)]
+pub struct Nothing;
 
-fn documentclass<S: Into<String>>(opt_args: Vec<Box<dyn TexElement>>, doc_class: S) -> MacroCall {
-    MacroCall {
-        ident: RawTex::new("documentclass"),
-        opt_args: OptArgs(opt_args),
-        args: Args(vec![Box::new(RawTex::new(doc_class)) as Box<dyn TexElement>]),
-        newline: true,
+impl Iterator for Nothing {
+    type Item = String;
+
+    #[inline(always)]
+    fn next(&mut self) -> Option<Self::Item> {
+        None
     }
 }
 
-fn usepackage<S: Into<String>>(opt_args: Vec<Box<dyn TexElement>>, package_name: S) -> MacroCall {
+pub const N: Nothing = Nothing;
+
+pub fn t<S: Into<String>>(s: S) -> Text {
+    Text::new(s)
+}
+
+pub fn doc(children: Vec<Box<dyn TexElement>>) -> Group {
+    Group(children)
+}
+
+pub fn documentclass<S: AsRef<str>, I: IntoIterator<Item = S>>(
+    opt_args: I,
+    doc_class: &str,
+) -> MacroCall {
+    MacroCall::new(
+        RawTex::new("documentclass"),
+        OptArgs::new(opt_args),
+        Args::new(&[doc_class]),
+    )
+}
+
+pub fn usepackage<S: Into<String>>(
+    opt_args: Vec<Box<dyn TexElement>>,
+    package_name: S,
+) -> MacroCall {
     MacroCall {
         ident: RawTex::new("usepackage"),
         opt_args: OptArgs(opt_args),
@@ -24,48 +47,24 @@ fn usepackage<S: Into<String>>(opt_args: Vec<Box<dyn TexElement>>, package_name:
     }
 }
 
-fn document(children: Vec<Box<dyn TexElement>>) -> BeginEndBlock {
-    BeginEndBlock::new(OptArgs::default(), Args::default(), "document", children)
+pub fn document(children: Vec<Box<dyn TexElement>>) -> BeginEndBlock {
+    BeginEndBlock::new("document", OptArgs::default(), Args::default(), children)
 }
 
-fn section<S: Into<String>>(title: S) -> MacroCall {
+pub fn section<S: Into<String>>(title: S) -> MacroCall {
     MacroCall {
         ident: RawTex::new("section"),
         opt_args: OptArgs::default(),
-        args: Args(elems![t!(title.into())]),
+        args: Args(elems![t(title)]),
         newline: true,
     }
 }
 
-fn subsection<S: Into<String>>(title: S) -> MacroCall {
+pub fn subsection<S: Into<String>>(title: S) -> MacroCall {
     MacroCall {
         ident: RawTex::new("subsection"),
         opt_args: OptArgs::default(),
-        args: Args(elems![t!(title.into())]),
+        args: Args(elems![t(title)]),
         newline: true,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::TexElement;
-    use super::*;
-
-    #[test]
-    fn simple_example() {
-        let doc = document(elems![
-            section("Notes"),
-            t!("I wrote some interesting stuff today\n"),
-            subsection("Subnotes")
-        ]);
-
-        let tex = root(elems![
-            documentclass(elems![t!("12pt")], "article"),
-            usepackage(vec![], "lingmacros"),
-            usepackage(vec![], "tree-dvips"),
-            doc
-        ]);
-
-        eprintln!("{}", tex.to_string());
     }
 }

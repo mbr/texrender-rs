@@ -12,8 +12,8 @@
 //! ## "Hello, world" using `TexElement` directly.
 //!
 //! ```rust
-//!# use texrender::tpl::{Args, BeginEndBlock, Group, MacroCall, OptArgs, RawTex, TexElement, Text};
-//!#
+//! use texrender::tpl::{Args, BeginEndBlock, Group, MacroCall, OptArgs, RawTex, TexElement, Text};
+//!
 //! let doctype = MacroCall::new(RawTex::new("documentclass"),
 //!                              OptArgs::new(&["12pt"]),
 //!                              Args::new(&["article"]));
@@ -23,8 +23,8 @@
 //!                        Args::new(&["Hello, world"]))));
 //! contents.push(Box::new(Text::new("This is Tex.")));
 //! let document = BeginEndBlock::new("document", Default::default(), Default::default(), contents);
-//! let file = Group::new(vec![Box::new(doctype) as Box<dyn TexElement>, Box::new(document)]);
-//! let output = file.render().expect("rendering failed");
+//! let tex = Group::new(vec![Box::new(doctype) as Box<dyn TexElement>, Box::new(document)]);
+//! let output = tex.render().expect("rendering failed");
 //! assert_eq!(output,
 //!            "\\documentclass[12pt]{article}\n\
 //!             \\begin{document}\n\
@@ -32,6 +32,43 @@
 //!             This is Tex.\n\
 //!             \\end{document}\n");
 //! ```
+//!
+//! While this form uses no macros, it is rather inconvenient to write. Luckily there is an
+//! alternative:
+//!
+//! ## "Hello, world" using elements and macros.
+//!
+//! ```rust
+//! use texrender::elems;
+//! use texrender::tpl::TexElement;
+//! use texrender::tpl::elements::{N, doc, document, documentclass, section, t};
+//!
+//! let tex = doc(elems!(
+//!     documentclass(N, "article"),
+//!     document(elems!(
+//!         section("Hello, world"),
+//!         t("This is Tex.")
+//!     ))
+//! ));
+//!
+//! let output = tex.render().expect("rendering failed");
+//!
+//! assert_eq!(output,
+//!            "\\documentclass{article}\n\
+//!             \\begin{document}\n\
+//!             \\section{Hello, world}\n\
+//!             This is Tex.\n\
+//!             \\end{document}\n");
+//! ```
+//!
+//! Element functions like `section` above typically cover most use cases, while not preventing the
+//! u ser to drop back to the raw functions above. The `elems` macro conveniently boxes and
+//! type-erases children, while `N` can be used for "no arguments" for both args and optargs.
+
+#[macro_use]
+pub mod macros;
+
+pub mod elements;
 
 use std::fmt::Debug;
 use std::io::Write;
@@ -46,14 +83,6 @@ pub trait TexElement: Debug {
             .expect("should always be able to write to in-memory buffer");
         String::from_utf8(buffer)
     }
-}
-
-fn foo() {
-    let doctype = MacroCall::new(
-        RawTex::new("documentclass"),
-        OptArgs::new(&["12pt"]),
-        Args::new(&["article"]),
-    );
 }
 
 #[derive(Debug)]
