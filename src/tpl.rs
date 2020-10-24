@@ -12,23 +12,35 @@
 //! ## "Hello, world" using `TexElement` directly.
 //!
 //! ```rust
-//!# use tpl::{TexElement, MacroCall};
+//!# use texrender::tpl::{Args, BeginEndBlock, Group, MacroCall, OptArgs, RawTex, TexElement, Text};
 //!#
-//! let doctype = MacroCall::new("documentclass",
-//! //Default::default(), Default::default());
-//!                              OptArgs::new(["12pt"])
-//!                              Args::new(["article"]));
-//! let output = doctype.to_string().expect("rendering failed");
+//! let doctype = MacroCall::new(RawTex::new("documentclass"),
+//!                              OptArgs::new(&["12pt"]),
+//!                              Args::new(&["article"]));
+//! let mut contents: Vec<Box<dyn TexElement>> = Vec::new();
+//! contents.push(Box::new(MacroCall::new(RawTex::new("section"),
+//!                        Default::default(),
+//!                        Args::new(&["Hello, world"]))));
+//! contents.push(Box::new(Text::new("This is Tex.")));
+//! let document = BeginEndBlock::new("document", Default::default(), Default::default(), contents);
+//! let file = Group::new(vec![Box::new(doctype) as Box<dyn TexElement>, Box::new(document)]);
+//! let output = file.render().expect("rendering failed");
+//! assert_eq!(output,
+//!            "\\documentclass[12pt]{article}\n\
+//!             \\begin{document}\n\
+//!             \\section{Hello, world}\n\
+//!             This is Tex.\n\
+//!             \\end{document}\n");
 //! ```
 
 use std::fmt::Debug;
 use std::io::Write;
 use std::{io, string};
 
-trait TexElement: Debug {
+pub trait TexElement: Debug {
     fn write_tex(&self, writer: &mut dyn Write) -> io::Result<()>;
 
-    fn to_string(&self) -> Result<String, string::FromUtf8Error> {
+    fn render(&self) -> Result<String, string::FromUtf8Error> {
         let mut buffer: Vec<u8> = Vec::new();
         self.write_tex(&mut buffer)
             .expect("should always be able to write to in-memory buffer");
@@ -36,11 +48,19 @@ trait TexElement: Debug {
     }
 }
 
+fn foo() {
+    let doctype = MacroCall::new(
+        RawTex::new("documentclass"),
+        OptArgs::new(&["12pt"]),
+        Args::new(&["article"]),
+    );
+}
+
 #[derive(Debug)]
-struct RawTex(Vec<u8>);
+pub struct RawTex(Vec<u8>);
 
 impl RawTex {
-    fn new<S: Into<String>>(raw: S) -> Self {
+    pub fn new<S: Into<String>>(raw: S) -> Self {
         RawTex(raw.into().into_bytes())
     }
 }
@@ -52,10 +72,10 @@ impl TexElement for RawTex {
 }
 
 #[derive(Debug)]
-struct Text(String);
+pub struct Text(String);
 
 impl Text {
-    fn new<S: Into<String>>(raw: S) -> Self {
+    pub fn new<S: Into<String>>(raw: S) -> Self {
         Text(raw.into())
     }
 }
@@ -69,13 +89,13 @@ impl TexElement for Text {
 }
 
 #[derive(Debug, Default)]
-struct OptArgs(Vec<Box<dyn TexElement>>);
+pub struct OptArgs(Vec<Box<dyn TexElement>>);
 
 impl OptArgs {
-    fn new<S: Into<String>, I: IntoIterator<Item = S>>(args: I) -> Self {
+    pub fn new<S: AsRef<str>, I: IntoIterator<Item = S>>(args: I) -> Self {
         Self::new_from_elements(
             args.into_iter()
-                .map(|s| Box::new(Text::new(s)) as Box<dyn TexElement>)
+                .map(|s| Box::new(Text::new(s.as_ref())) as Box<dyn TexElement>)
                 .collect(),
         )
     }
@@ -112,13 +132,13 @@ impl TexElement for OptArgs {
 }
 
 #[derive(Debug, Default)]
-struct Args(Vec<Box<dyn TexElement>>);
+pub struct Args(Vec<Box<dyn TexElement>>);
 
 impl Args {
-    fn new<S: Into<String>, I: IntoIterator<Item = S>>(args: I) -> Self {
+    pub fn new<S: AsRef<str>, I: IntoIterator<Item = S>>(args: I) -> Self {
         Self::new_from_elements(
             args.into_iter()
-                .map(|s| Box::new(Text::new(s)) as Box<dyn TexElement>)
+                .map(|s| Box::new(Text::new(s.as_ref())) as Box<dyn TexElement>)
                 .collect(),
         )
     }
@@ -156,7 +176,7 @@ pub struct MacroCall {
 }
 
 impl MacroCall {
-    fn new(ident: RawTex, opt_args: OptArgs, args: Args) -> Self {
+    pub fn new(ident: RawTex, opt_args: OptArgs, args: Args) -> Self {
         MacroCall {
             ident,
             opt_args,
@@ -165,7 +185,7 @@ impl MacroCall {
         }
     }
 
-    fn new_inline(ident: RawTex, opt_args: OptArgs, args: Args) -> Self {
+    pub fn new_inline(ident: RawTex, opt_args: OptArgs, args: Args) -> Self {
         MacroCall {
             ident,
             opt_args,
@@ -204,10 +224,10 @@ pub struct BeginEndBlock {
 }
 
 impl BeginEndBlock {
-    fn new<S: Into<String>>(
+    pub fn new<S: Into<String>>(
+        ident: S,
         opt_args: OptArgs,
         args: Args,
-        ident: S,
         children: Vec<Box<dyn TexElement>>,
     ) -> Self {
         let ident = ident.into();
@@ -268,6 +288,12 @@ impl TexElement for AnonymousBlock {
 
 #[derive(Debug)]
 pub struct Group(Vec<Box<dyn TexElement>>);
+
+impl Group {
+    pub fn new(elems: Vec<Box<dyn TexElement>>) -> Self {
+        Group(elems)
+    }
+}
 
 impl TexElement for Group {
     fn write_tex(&self, writer: &mut dyn Write) -> io::Result<()> {
