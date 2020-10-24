@@ -133,8 +133,7 @@ impl Text {
 
 impl TexElement for Text {
     fn write_tex(&self, writer: &mut dyn Write) -> io::Result<()> {
-        // TODO: Escape.
-        writer.write_all(self.0.as_bytes())
+        crate::tex_escape::write_escaped(writer, &self.0)
     }
 }
 
