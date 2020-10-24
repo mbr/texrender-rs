@@ -2,6 +2,7 @@
 //!
 //! A thin wrapper around external tools like `latexmk`. See `TexRender` for details.
 
+pub mod tex_escape;
 pub mod tpl;
 
 use std::{
