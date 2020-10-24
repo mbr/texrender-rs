@@ -1,38 +1,38 @@
+//! TeX templating
+//!
+//! The `tpl` module contains a way of constructing a TeX-document programmatically. It ensures
+//! documents are well-formed syntactically, but not semantically (e.g. it is possible to express
+//! documents that contain multiple `\documentclass` macro calls inside the document but not a
+//! `\begin{foo}` without a matching `\end`).
+//!
+//! As a result of this deliberate limitation, the API is fairly simple. The core module offers the
+//! entire abstraction through the `TexElement` trait, while the `elements` module contains
+//! syntactic sugar for building documents quickly.
+//!
+//! ## "Hello, world" using `TexElement` directly.
+//!
+//! ```rust
+//!# use tpl::{TexElement, MacroCall};
+//!#
+//! let doctype = MacroCall::new("documentclass",
+//! //Default::default(), Default::default());
+//!                              OptArgs::new(["12pt"])
+//!                              Args::new(["article"]));
+//! let output = doctype.to_string().expect("rendering failed");
+//! ```
+
 use std::fmt::Debug;
-use std::io;
 use std::io::Write;
-
-macro_rules! elems {
-  ($($elem:expr),*) => { {
-    let mut collected = Vec::new();
-    $(
-      collected.push(Box::new($elem) as Box<dyn TexElement>)
-      ;)*
-    collected
-  } };
-}
-
-macro_rules! raw {
-    ($x:expr) => {
-        RawTex::new($x)
-    };
-}
-
-macro_rules! t {
-    ($x:expr) => {
-        Text::new($x)
-    };
-}
+use std::{io, string};
 
 trait TexElement: Debug {
     fn write_tex(&self, writer: &mut dyn Write) -> io::Result<()>;
-    fn to_string(&self) -> String {
+
+    fn to_string(&self) -> Result<String, string::FromUtf8Error> {
         let mut buffer: Vec<u8> = Vec::new();
         self.write_tex(&mut buffer)
-            .expect("should always be able to write to buffer");
+            .expect("should always be able to write to in-memory buffer");
         String::from_utf8(buffer)
-            .to_owned()
-            .expect("generated invalid utf8")
     }
 }
 
@@ -71,6 +71,20 @@ impl TexElement for Text {
 #[derive(Debug, Default)]
 struct OptArgs(Vec<Box<dyn TexElement>>);
 
+impl OptArgs {
+    fn new<S: Into<String>, I: IntoIterator<Item = S>>(args: I) -> Self {
+        Self::new_from_elements(
+            args.into_iter()
+                .map(|s| Box::new(Text::new(s)) as Box<dyn TexElement>)
+                .collect(),
+        )
+    }
+
+    fn new_from_elements(elements: Vec<Box<dyn TexElement>>) -> Self {
+        OptArgs(elements)
+    }
+}
+
 fn write_list<'a, I>(writer: &mut dyn Write, separator: &str, iter: I) -> io::Result<()>
 where
     I: Iterator<Item = &'a Box<dyn TexElement>> + 'a,
@@ -100,6 +114,20 @@ impl TexElement for OptArgs {
 #[derive(Debug, Default)]
 struct Args(Vec<Box<dyn TexElement>>);
 
+impl Args {
+    fn new<S: Into<String>, I: IntoIterator<Item = S>>(args: I) -> Self {
+        Self::new_from_elements(
+            args.into_iter()
+                .map(|s| Box::new(Text::new(s)) as Box<dyn TexElement>)
+                .collect(),
+        )
+    }
+
+    fn new_from_elements(elements: Vec<Box<dyn TexElement>>) -> Self {
+        Args(elements)
+    }
+}
+
 impl TexElement for Args {
     fn write_tex(&self, writer: &mut dyn Write) -> io::Result<()> {
         if !self.0.is_empty() {
@@ -112,6 +140,9 @@ impl TexElement for Args {
     }
 }
 
+/// A TeX-macro invocation.
+///
+/// Typically
 #[derive(Debug)]
 pub struct MacroCall {
     /// Name of the instruction.
@@ -122,6 +153,26 @@ pub struct MacroCall {
     args: Args,
     /// Whether or not to append a newline afterwards.
     newline: bool,
+}
+
+impl MacroCall {
+    fn new(ident: RawTex, opt_args: OptArgs, args: Args) -> Self {
+        MacroCall {
+            ident,
+            opt_args,
+            args,
+            newline: true,
+        }
+    }
+
+    fn new_inline(ident: RawTex, opt_args: OptArgs, args: Args) -> Self {
+        MacroCall {
+            ident,
+            opt_args,
+            args,
+            newline: false,
+        }
+    }
 }
 
 impl TexElement for MacroCall {
@@ -224,77 +275,5 @@ impl TexElement for Group {
             child.write_tex(writer)?;
         }
         Ok(())
-    }
-}
-
-// HIGHER LAYER BELOW
-
-fn root(children: Vec<Box<dyn TexElement>>) -> Group {
-    Group(children)
-}
-
-fn documentclass<S: Into<String>>(opt_args: Vec<Box<dyn TexElement>>, doc_class: S) -> MacroCall {
-    MacroCall {
-        ident: RawTex::new("documentclass"),
-        opt_args: OptArgs(opt_args),
-        args: Args(vec![Box::new(RawTex::new(doc_class)) as Box<dyn TexElement>]),
-        newline: true,
-    }
-}
-
-fn usepackage<S: Into<String>>(opt_args: Vec<Box<dyn TexElement>>, package_name: S) -> MacroCall {
-    MacroCall {
-        ident: RawTex::new("usepackage"),
-        opt_args: OptArgs(opt_args),
-        args: Args(vec![
-            Box::new(RawTex::new(package_name)) as Box<dyn TexElement>
-        ]),
-        newline: true,
-    }
-}
-
-fn document(children: Vec<Box<dyn TexElement>>) -> BeginEndBlock {
-    BeginEndBlock::new(OptArgs::default(), Args::default(), "document", children)
-}
-
-fn section<S: Into<String>>(title: S) -> MacroCall {
-    MacroCall {
-        ident: RawTex::new("section"),
-        opt_args: OptArgs::default(),
-        args: Args(elems![t!(title.into())]),
-        newline: true,
-    }
-}
-
-fn subsection<S: Into<String>>(title: S) -> MacroCall {
-    MacroCall {
-        ident: RawTex::new("subsection"),
-        opt_args: OptArgs::default(),
-        args: Args(elems![t!(title.into())]),
-        newline: true,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::TexElement;
-    use super::*;
-
-    #[test]
-    fn simple_example() {
-        let doc = document(elems![
-            section("Notes"),
-            t!("I wrote some interesting stuff today\n"),
-            subsection("Subnotes")
-        ]);
-
-        let tex = root(elems![
-            documentclass(elems![t!("12pt")], "article"),
-            usepackage(vec![], "lingmacros"),
-            usepackage(vec![], "tree-dvips"),
-            doc
-        ]);
-
-        eprintln!("{}", tex.to_string());
     }
 }

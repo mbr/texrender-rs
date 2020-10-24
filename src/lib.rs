@@ -2,7 +2,7 @@
 //!
 //! A thin wrapper around external tools like `latexmk`. See `TexRender` for details.
 
-mod tpl;
+pub mod tpl;
 
 use std::{
     ffi::{OsStr, OsString},
