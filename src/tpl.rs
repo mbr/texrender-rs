@@ -175,7 +175,7 @@ impl OptArgs {
 
     /// Crates a new set of optional arguments.
     #[inline]
-    fn new_from_elements(elements: Vec<Box<dyn TexElement>>) -> Self {
+    pub fn new_from_elements(elements: Vec<Box<dyn TexElement>>) -> Self {
         OptArgs(elements)
     }
 }
@@ -215,7 +215,7 @@ impl Args {
 
     /// Crates a new set of arguments.
     #[inline]
-    fn new_from_elements(elements: Vec<Box<dyn TexElement>>) -> Self {
+    pub fn new_from_elements(elements: Vec<Box<dyn TexElement>>) -> Self {
         Args(elements)
     }
 }
