@@ -23,17 +23,14 @@ impl Iterator for Nothing {
 /// Ready to use instance of `Nothing`.
 pub const N: Nothing = Nothing;
 
-/// Creates a new text element.
-pub fn t<S: Into<String>>(s: S) -> Text {
-    Text::new(s)
-}
-
 /// Creates a new top-level document.
+#[inline]
 pub fn doc(children: Vec<Box<dyn TexElement>>) -> Group {
     Group(children)
 }
 
 /// Creates a `documentclass` declaration.
+#[inline]
 pub fn documentclass<S: AsRef<str>, I: IntoIterator<Item = S>>(
     opt_args: I,
     doc_class: &str,
@@ -45,27 +42,26 @@ pub fn documentclass<S: AsRef<str>, I: IntoIterator<Item = S>>(
     )
 }
 
-/// Creates a `usepackage` declaration.
-pub fn usepackage<S: Into<String>>(
-    opt_args: Vec<Box<dyn TexElement>>,
-    package_name: S,
-) -> MacroCall {
-    MacroCall {
-        ident: RawTex::new("usepackage"),
-        opt_args: OptArgs(opt_args),
-        args: Args(vec![
-            Box::new(RawTex::new(package_name)) as Box<dyn TexElement>
-        ]),
-        newline: true,
-    }
-}
-
 /// Creates a new `document` begin/end block.
+#[inline]
 pub fn document(children: Vec<Box<dyn TexElement>>) -> BeginEndBlock {
     BeginEndBlock::new("document", OptArgs::default(), Args::default(), children)
 }
 
+/// Creates an anonymous group.
+#[inline]
+pub fn group(children: Vec<Box<dyn TexElement>>) -> Group {
+    Group(children)
+}
+
+/// Creates new, unescaped LaTeX-code.
+#[inline]
+pub fn raw<S: Into<String>>(raw: S) -> RawTex {
+    RawTex::new(raw)
+}
+
 /// Creates a new `section` header.
+#[inline]
 pub fn section<S: Into<String>>(title: S) -> MacroCall {
     MacroCall {
         ident: RawTex::new("section"),
@@ -76,11 +72,34 @@ pub fn section<S: Into<String>>(title: S) -> MacroCall {
 }
 
 /// Creates a new `subsection` header.
+#[inline]
 pub fn subsection<S: Into<String>>(title: S) -> MacroCall {
     MacroCall {
         ident: RawTex::new("subsection"),
         opt_args: OptArgs::default(),
         args: Args(elems![t(title)]),
+        newline: true,
+    }
+}
+
+/// Creates a new text element.
+#[inline]
+pub fn t<S: Into<String>>(s: S) -> Text {
+    Text::new(s)
+}
+
+/// Creates a `usepackage` declaration.
+#[inline]
+pub fn usepackage<S: Into<String>>(
+    opt_args: Vec<Box<dyn TexElement>>,
+    package_name: S,
+) -> MacroCall {
+    MacroCall {
+        ident: RawTex::new("usepackage"),
+        opt_args: OptArgs(opt_args),
+        args: Args(vec![
+            Box::new(RawTex::new(package_name)) as Box<dyn TexElement>
+        ]),
         newline: true,
     }
 }

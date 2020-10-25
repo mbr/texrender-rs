@@ -22,6 +22,7 @@ where
             '~' => out.write_all(b"\\textasciitilde{}")?,
             '^' => out.write_all(b"\\textasciicircum{}")?,
             '\\' => out.write_all(b"\\textbackslash{}")?,
+            '\n' => out.write_all(b"\\hfill\\break\n")?,
 
             // Potentially optional, but likely good practice nonetheless.
             '<' => out.write_all(b"\\textless{}")?,

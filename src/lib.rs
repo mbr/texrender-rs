@@ -160,7 +160,7 @@ impl TexRender {
 
         let mut cmd = process::Command::new(&self.latex_mk_path);
         cmd.args(&[
-            "-interaction=batchmode",
+            "-interaction=nonstopmode",
             "-halt-on-error",
             "-file-line-error",
             "-pdf",
