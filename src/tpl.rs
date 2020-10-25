@@ -162,8 +162,8 @@ pub struct OptArgs(Vec<Box<dyn TexElement>>);
 impl OptArgs {
     /// Creates a new set of optional arguments.
     ///
-    /// This is a higher level convenience functions that accepts iterables of strings, see
-    /// `new_from_elements` for a lower-level one.
+    /// This is a higher level convenience functions that accepts iterables of to-be-escaped
+    /// strings, see `new_from_elements` for a lower-level one.
     #[inline]
     pub fn new<S: AsRef<str>, I: IntoIterator<Item = S>>(args: I) -> Self {
         Self::new_from_elements(
@@ -202,8 +202,8 @@ pub struct Args(Vec<Box<dyn TexElement>>);
 impl Args {
     /// Creates a new set of arguments.
     ///
-    /// This is a higher level convenience functions that accepts iterables of strings, see
-    /// `new_from_elements` for a lower-level one.
+    /// This is a higher level convenience functions that accepts iterables of to-be-escaped
+    /// strings, see `new_from_elements` for a lower-level one.
     #[inline]
     pub fn new<S: AsRef<str>, I: IntoIterator<Item = S>>(args: I) -> Self {
         Self::new_from_elements(
@@ -224,7 +224,7 @@ impl TexElement for Args {
     fn write_tex(&self, writer: &mut dyn Write) -> io::Result<()> {
         if !self.0.is_empty() {
             writer.write_all(b"{")?;
-            write_list(writer, ",", self.0.iter())?;
+            write_list(writer, "}{", self.0.iter())?;
             writer.write_all(b"}")?;
         }
 
