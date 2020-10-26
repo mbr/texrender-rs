@@ -90,6 +90,53 @@ pub trait TexElement: Debug {
     }
 }
 
+/// Conversion trait for various types.
+///
+/// Used for primitive conversions of various types directly into tex elements. Implementations
+/// include:
+///
+/// * `str` and `String` are converted to escaped `Text` elements.
+/// * Any number (`u8`, ...) is converted to escaped `Text` using display.
+pub trait IntoTexElement {
+    /// Converts the given element into a `TexElement`.
+    fn into_tex_element(&self) -> Box<dyn TexElement>;
+}
+
+impl<'a> IntoTexElement for &'a str {
+    fn into_tex_element(&self) -> Box<dyn TexElement> {
+        Box::new(Text::new(self.to_owned()))
+    }
+}
+
+impl IntoTexElement for String {
+    fn into_tex_element(&self) -> Box<dyn TexElement> {
+        Box::new(Text::new(self))
+    }
+}
+
+macro_rules! using_display {
+    ($ty:ty) => {
+        impl IntoTexElement for $ty {
+            fn into_tex_element(&self) -> Box<dyn TexElement> {
+                Box::new(Text::new(format!("{}", self)))
+            }
+        }
+    };
+}
+
+using_display!(u8);
+using_display!(u16);
+using_display!(u32);
+using_display!(u64);
+using_display!(u128);
+using_display!(i8);
+using_display!(i16);
+using_display!(i32);
+using_display!(i64);
+using_display!(i128);
+using_display!(f32);
+using_display!(f64);
+
 /// Writes a list of tex elements to a stream with a separator.
 pub fn write_list<'a, I>(writer: &mut dyn Write, separator: &str, iter: I) -> io::Result<()>
 where
