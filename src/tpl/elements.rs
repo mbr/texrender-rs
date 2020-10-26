@@ -42,10 +42,20 @@ pub fn documentclass<S: AsRef<str>, I: IntoIterator<Item = S>>(
     )
 }
 
-/// Creates a new `document` begin/end block.
+/// Creates a new `document` environment.
 #[inline]
 pub fn document(children: Vec<Box<dyn TexElement>>) -> BeginEndBlock {
     BeginEndBlock::new("document", OptArgs::default(), Args::default(), children)
+}
+
+/// Creates a new `figure` environment.
+pub fn figure(options: &str, children: Vec<Box<dyn TexElement>>) -> BeginEndBlock {
+    BeginEndBlock::new(
+        "figure",
+        OptArgs::new(&[options]),
+        Args::default(),
+        children,
+    )
 }
 
 /// Creates an anonymous group.
@@ -63,6 +73,16 @@ pub fn hspace<S: Into<String>>(space: S) -> MacroCall {
         args: Args(vec![Box::new(RawTex::new(space)) as Box<dyn TexElement>]),
         newline: true,
     }
+}
+
+/// Creates a new `minipage` environment.
+pub fn minipage(alignment: &str, width: &str, children: Vec<Box<dyn TexElement>>) -> BeginEndBlock {
+    BeginEndBlock::new(
+        "minipage",
+        OptArgs::new(&[alignment]),
+        Args::new(&[width]),
+        children,
+    )
 }
 
 /// Creates new, unescaped LaTeX-code.
