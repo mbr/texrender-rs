@@ -12,16 +12,17 @@
 //! ## "Hello, world" using `TexElement` directly.
 //!
 //! ```rust
-//! use texrender::tpl::{Args, BeginEndBlock, Group, MacroCall, OptArgs, RawTex, TexElement, Text};
+//! use texrender::tpl::{Args, BeginEndBlock, Group, IntoTexElement, MacroCall, OptArgs, RawTex,
+//!                      TexElement, Text};
 //!
-//! let doctype = MacroCall::new(RawTex::new("documentclass"),
-//!                              OptArgs::new(&["12pt"]),
-//!                              Args::new(&["article"]));
+//! let doctype = MacroCall::new("documentclass",
+//!                              OptArgs::single("12pt"),
+//!                              Args::single("article"));
 //! let mut contents: Vec<Box<dyn TexElement>> = Vec::new();
-//! contents.push(Box::new(MacroCall::new(RawTex::new("section"),
+//! contents.push(Box::new(MacroCall::new("section",
 //!                        Default::default(),
-//!                        Args::new(&["Hello, world"]))));
-//! contents.push(Box::new(Text::new("This is fun & easy.")));
+//!                        Args::single("Hello, world"))));
+//! contents.push("This is fun & easy.".into_tex_element());
 //! let document = BeginEndBlock::new("document", Default::default(), Default::default(), contents);
 //! let tex = Group::new(vec![Box::new(doctype) as Box<dyn TexElement>, Box::new(document)]);
 //! let output = tex.render().expect("rendering failed");
@@ -41,13 +42,13 @@
 //! ```rust
 //! use texrender::elems;
 //! use texrender::tpl::TexElement;
-//! use texrender::tpl::elements::{N, doc, document, documentclass, section, t};
+//! use texrender::tpl::elements::{N, doc, document, documentclass, section};
 //!
 //! let tex = doc(elems!(
-//!     documentclass(N, "article"),
+//!     documentclass(elems!(), "article"),
 //!     document(elems!(
 //!         section("Hello, world"),
-//!         t("This is fun & easy.")
+//!         "This is fun & easy."
 //!     ))
 //! ));
 //!
@@ -90,6 +91,87 @@ pub trait TexElement: Debug {
     }
 }
 
+/// Conversion trait for various types.
+///
+/// Used for primitive conversions of various types directly into tex elements. Implementations
+/// include:
+///
+/// * `Box<dyn TexElement>` are passed through unchanged.
+/// * Any other `TexElement` will be boxed.
+/// * `str` and `String` are converted to escaped `Text` elements.
+/// * Any number (`u8`, ...) is converted to escaped `Text` using display.
+/// * A `Vec<Box<dyn TexElement>>` is converted into a `Group`.
+/// * The unit type `()` is converted into an empty element.
+pub trait IntoTexElement {
+    /// Converts the given element into a `TexElement`.
+    fn into_tex_element(self) -> Box<dyn TexElement>;
+}
+
+impl IntoTexElement for Box<dyn TexElement> {
+    #[inline]
+    fn into_tex_element(self) -> Box<dyn TexElement> {
+        self
+    }
+}
+
+impl<'a> IntoTexElement for &'a str {
+    #[inline]
+    fn into_tex_element(self) -> Box<dyn TexElement> {
+        self.to_owned().into_tex_element()
+    }
+}
+
+impl IntoTexElement for String {
+    #[inline]
+    fn into_tex_element(self) -> Box<dyn TexElement> {
+        Box::new(Text::new(self))
+    }
+}
+
+impl IntoTexElement for () {
+    fn into_tex_element(self) -> Box<dyn TexElement> {
+        Box::new(RawTex(Vec::new()))
+    }
+}
+
+impl<T: TexElement + Sized + 'static> IntoTexElement for T {
+    #[inline]
+    fn into_tex_element(self) -> Box<dyn TexElement> {
+        Box::new(self)
+    }
+}
+
+impl IntoTexElement for Vec<Box<dyn TexElement>> {
+    #[inline]
+    fn into_tex_element(self) -> Box<dyn TexElement> {
+        Box::new(Group::new(self))
+    }
+}
+
+macro_rules! using_display {
+    ($ty:ty) => {
+        impl IntoTexElement for $ty {
+            #[inline]
+            fn into_tex_element(self) -> Box<dyn TexElement> {
+                Box::new(Text::new(format!("{}", self)))
+            }
+        }
+    };
+}
+
+using_display!(u8);
+using_display!(u16);
+using_display!(u32);
+using_display!(u64);
+using_display!(u128);
+using_display!(i8);
+using_display!(i16);
+using_display!(i32);
+using_display!(i64);
+using_display!(i128);
+using_display!(f32);
+using_display!(f64);
+
 /// Writes a list of tex elements to a stream with a separator.
 pub fn write_list<'a, I>(writer: &mut dyn Write, separator: &str, iter: I) -> io::Result<()>
 where
@@ -110,19 +192,13 @@ where
 /// Tex is not guaranteed to be UTF-8 encoded, thus `RawTex` internally keeps bytes. The value will
 /// be inserted into the document without any escaping. The value is unchecked, thus it is possible
 /// to create syntactically incorrect invalid documents using this element.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct RawTex(Vec<u8>);
 
 impl RawTex {
     /// Crates a new raw tex element from a string.
     #[inline]
-    pub fn new<S: Into<String>>(raw: S) -> Self {
-        RawTex(raw.into().into_bytes())
-    }
-
-    /// Crates a new raw tex element from a bytes.
-    #[inline]
-    pub fn new_bytes(raw: Vec<u8>) -> Self {
+    pub fn new(raw: Vec<u8>) -> Self {
         RawTex(raw)
     }
 }
@@ -136,14 +212,14 @@ impl TexElement for RawTex {
 /// A text string.
 ///
 /// Text strings will be escaped before insertion.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Text(String);
 
 impl Text {
     /// Creates a new text string.
     #[inline]
-    pub fn new<S: Into<String>>(raw: S) -> Self {
-        Text(raw.into())
+    pub fn new(raw: String) -> Self {
+        Text(raw)
     }
 }
 
@@ -161,22 +237,15 @@ pub struct OptArgs(Vec<Box<dyn TexElement>>);
 
 impl OptArgs {
     /// Creates a new set of optional arguments.
-    ///
-    /// This is a higher level convenience functions that accepts iterables of to-be-escaped
-    /// strings, see `new_from_elements` for a lower-level one.
     #[inline]
-    pub fn new<S: AsRef<str>, I: IntoIterator<Item = S>>(args: I) -> Self {
-        Self::new_from_elements(
-            args.into_iter()
-                .map(|s| Box::new(Text::new(s.as_ref())) as Box<dyn TexElement>)
-                .collect(),
-        )
+    pub fn new(elements: Vec<Box<dyn TexElement>>) -> Self {
+        OptArgs(elements)
     }
 
-    /// Crates a new set of optional arguments.
+    /// Creates a new optinal argument from a single value.
     #[inline]
-    pub fn new_from_elements(elements: Vec<Box<dyn TexElement>>) -> Self {
-        OptArgs(elements)
+    pub fn single<T: IntoTexElement>(elem: T) -> Self {
+        OptArgs(vec![elem.into_tex_element()])
     }
 }
 
@@ -201,22 +270,15 @@ pub struct Args(Vec<Box<dyn TexElement>>);
 
 impl Args {
     /// Creates a new set of arguments.
-    ///
-    /// This is a higher level convenience functions that accepts iterables of to-be-escaped
-    /// strings, see `new_from_elements` for a lower-level one.
     #[inline]
-    pub fn new<S: AsRef<str>, I: IntoIterator<Item = S>>(args: I) -> Self {
-        Self::new_from_elements(
-            args.into_iter()
-                .map(|s| Box::new(Text::new(s.as_ref())) as Box<dyn TexElement>)
-                .collect(),
-        )
+    pub fn new(elements: Vec<Box<dyn TexElement>>) -> Self {
+        Args(elements)
     }
 
-    /// Crates a new set of arguments.
+    /// Creates a new optinal argument from a single value.
     #[inline]
-    pub fn new_from_elements(elements: Vec<Box<dyn TexElement>>) -> Self {
-        Args(elements)
+    pub fn single<T: IntoTexElement>(elem: T) -> Self {
+        Args(vec![elem.into_tex_element()])
     }
 }
 
@@ -238,7 +300,7 @@ impl TexElement for Args {
 #[derive(Debug)]
 pub struct MacroCall {
     /// Name of the instruction.
-    ident: RawTex,
+    ident: Box<dyn TexElement>,
     /// Optional arguments.
     opt_args: OptArgs,
     /// Mandatory arguments.
@@ -251,9 +313,9 @@ impl MacroCall {
     /// Creates a new macro call.
     ///
     /// The resulting call will end with a newline when output.
-    pub fn new(ident: RawTex, opt_args: OptArgs, args: Args) -> Self {
+    pub fn new<T: IntoTexElement>(ident: T, opt_args: OptArgs, args: Args) -> Self {
         MacroCall {
-            ident,
+            ident: ident.into_tex_element(),
             opt_args,
             args,
             newline: true,
@@ -263,9 +325,9 @@ impl MacroCall {
     /// Creates a new inline macro call.
     ///
     /// Does not end with a newline.
-    pub fn new_inline(ident: RawTex, opt_args: OptArgs, args: Args) -> Self {
+    pub fn new_inline<T: IntoTexElement>(ident: T, opt_args: OptArgs, args: Args) -> Self {
         MacroCall {
-            ident,
+            ident: ident.into_tex_element(),
             opt_args,
             args,
             newline: false,
@@ -301,35 +363,21 @@ pub struct BeginEndBlock {
 
 impl BeginEndBlock {
     /// Creates a new begin/end block.
-    pub fn new<S: Into<String>>(
-        ident: S,
+    pub fn new<T: IntoTexElement + Clone>(
+        ident: T,
         opt_args: OptArgs,
         args: Args,
         children: Vec<Box<dyn TexElement>>,
     ) -> Self {
-        let ident = ident.into();
-
-        let mut opening_args =
-            vec![Box::new(RawTex(ident.clone().into_bytes())) as Box<dyn TexElement>];
-        let closing_args =
-            vec![Box::new(RawTex(ident.clone().into_bytes())) as Box<dyn TexElement>];
+        let mut opening_args = vec![ident.clone().into_tex_element()];
+        let closing_args = vec![ident.into_tex_element()];
 
         opening_args.extend(args.0.into_iter());
 
         BeginEndBlock {
-            opening: MacroCall {
-                ident: RawTex::new("begin"),
-                opt_args,
-                args: Args(opening_args),
-                newline: true,
-            },
+            opening: MacroCall::new("begin", opt_args, Args::new(opening_args)),
             children,
-            closing: MacroCall {
-                ident: RawTex::new("end"),
-                opt_args: OptArgs::default(),
-                args: Args(closing_args),
-                newline: true,
-            },
+            closing: MacroCall::new("end", OptArgs::default(), Args::new(closing_args)),
         }
     }
 }
