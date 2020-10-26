@@ -96,10 +96,11 @@ pub trait TexElement: Debug {
 /// Used for primitive conversions of various types directly into tex elements. Implementations
 /// include:
 ///
-/// * `Box<TexElement>` are passed through unchanged.
+/// * `Box<dyn TexElement>` are passed through unchanged.
 /// * Any other `TexElement` will be boxed.
 /// * `str` and `String` are converted to escaped `Text` elements.
 /// * Any number (`u8`, ...) is converted to escaped `Text` using display.
+/// * A `Vec<Box<dyn TexElement>>` is converted into a `Group`.
 pub trait IntoTexElement {
     /// Converts the given element into a `TexElement`.
     fn into_tex_element(self) -> Box<dyn TexElement>;
@@ -130,6 +131,13 @@ impl<T: TexElement + Sized + 'static> IntoTexElement for T {
     #[inline]
     fn into_tex_element(self) -> Box<dyn TexElement> {
         Box::new(self)
+    }
+}
+
+impl IntoTexElement for Vec<Box<dyn TexElement>> {
+    #[inline]
+    fn into_tex_element(self) -> Box<dyn TexElement> {
+        Box::new(Group::new(self))
     }
 }
 
