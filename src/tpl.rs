@@ -91,7 +91,7 @@ pub trait TexElement: Debug {
 }
 
 /// Writes a list of tex elements to a stream with a separator.
-fn write_list<'a, I>(writer: &mut dyn Write, separator: &str, iter: I) -> io::Result<()>
+pub fn write_list<'a, I>(writer: &mut dyn Write, separator: &str, iter: I) -> io::Result<()>
 where
     I: Iterator<Item = &'a Box<dyn TexElement>> + 'a,
 {
@@ -393,5 +393,25 @@ impl TexElement for Group {
             child.write_tex(writer)?;
         }
         Ok(())
+    }
+}
+
+/// Table row.
+///
+/// Multiple elements joined by ` & ` when rendered.
+#[derive(Debug)]
+pub struct TableRow(Vec<Box<dyn TexElement>>);
+
+impl TableRow {
+    /// Creates a new table row.
+    pub fn new(elems: Vec<Box<dyn TexElement>>) -> Self {
+        TableRow(elems)
+    }
+}
+
+impl TexElement for TableRow {
+    fn write_tex(&self, writer: &mut dyn Write) -> io::Result<()> {
+        write_list(writer, " & ", self.0.iter())?;
+        writer.write_all(b"\\\\\n")
     }
 }
