@@ -75,6 +75,12 @@ pub fn hspace<T: IntoTexElement>(space: T) -> MacroCall {
     MacroCall::new_inline("hspace", OptArgs::default(), Args::single(space))
 }
 
+/// Creates an `includegraphics` element.
+#[inline]
+pub fn includegraphics<T: IntoTexElement>(options: Vec<Box<dyn TexElement>>, path: T) -> MacroCall {
+    MacroCall::new_inline("includegraphics", OptArgs::new(options), Args::single(path))
+}
+
 /// Creates a new `minipage` environment.
 #[inline]
 pub fn minipage<T: IntoTexElement, U: IntoTexElement>(
