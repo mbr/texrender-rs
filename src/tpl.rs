@@ -353,46 +353,50 @@ impl TexElement for MacroCall {
 /// Begin-end blocks usually start with a `\begin{blockname}` and end with `\end{blockname}`.
 #[derive(Debug)]
 pub struct BeginEndBlock {
-    /// The opening instruction, typically `\begin{blockname}`.
-    opening: MacroCall,
-    /// Children.
+    /// The identifier for the block.
+    ident: Box<dyn TexElement>,
+    /// Optional arguments.
+    opt_args: OptArgs,
+    /// Actual arguments.
+    args: Args,
+    /// Child elements of the block.
     children: Vec<Box<dyn TexElement>>,
-    /// Closing instruction, typically `\end{blockname}`
-    closing: MacroCall,
 }
 
 impl BeginEndBlock {
     /// Creates a new begin/end block.
-    pub fn new<T: IntoTexElement + Clone>(
+    pub fn new<T: IntoTexElement>(
         ident: T,
         opt_args: OptArgs,
         args: Args,
         children: Vec<Box<dyn TexElement>>,
     ) -> Self {
-        let mut opening_args = vec![ident.clone().into_tex_element()];
-        let closing_args = vec![ident.into_tex_element()];
-
-        opening_args.extend(args.0.into_iter());
-
         BeginEndBlock {
-            opening: MacroCall::new("begin", opt_args, Args::new(opening_args)),
+            ident: ident.into_tex_element(),
+            opt_args,
+            args,
             children,
-            closing: MacroCall::new("end", OptArgs::default(), Args::new(closing_args)),
         }
     }
 }
 
 impl TexElement for BeginEndBlock {
     fn write_tex(&self, writer: &mut dyn Write) -> io::Result<()> {
-        self.opening.write_tex(writer)?;
+        writer.write_all(b"\\begin{")?;
+        self.ident.write_tex(writer)?;
+        writer.write_all(b"}")?;
+
+        self.opt_args.write_tex(writer)?;
+        self.args.write_tex(writer)?;
+        writer.write_all(b"\n")?;
 
         for child in &self.children {
             child.write_tex(writer)?;
         }
 
-        writer.write_all(b"\n")?;
-        self.closing.write_tex(writer)?;
-
+        writer.write_all(b"\n\\end{")?;
+        self.ident.write_tex(writer)?;
+        writer.write_all(b"}\n")?;
         Ok(())
     }
 }
