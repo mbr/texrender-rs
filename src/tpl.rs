@@ -101,6 +101,7 @@ pub trait TexElement: Debug {
 /// * `str` and `String` are converted to escaped `Text` elements.
 /// * Any number (`u8`, ...) is converted to escaped `Text` using display.
 /// * A `Vec<Box<dyn TexElement>>` is converted into a `Group`.
+/// * The unit type `()` is converted into an empty element.
 pub trait IntoTexElement {
     /// Converts the given element into a `TexElement`.
     fn into_tex_element(self) -> Box<dyn TexElement>;
@@ -124,6 +125,12 @@ impl IntoTexElement for String {
     #[inline]
     fn into_tex_element(self) -> Box<dyn TexElement> {
         Box::new(Text::new(self))
+    }
+}
+
+impl IntoTexElement for () {
+    fn into_tex_element(self) -> Box<dyn TexElement> {
+        Box::new(RawTex(Vec::new()))
     }
 }
 
