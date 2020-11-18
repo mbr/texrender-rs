@@ -30,6 +30,11 @@ pub fn cellcolor<S: Into<String>>(color: S) -> MacroCall {
     MacroCall::new("cellcolor", OptArgs::default(), Args::single(raw(color)))
 }
 
+/// Creates a description environment.
+pub fn description(children: Vec<Box<dyn TexElement>>) -> BeginEndBlock {
+    BeginEndBlock::new("description", OptArgs::default(), Args::default(), children)
+}
+
 /// Creates a new top-level document.
 #[inline]
 pub fn doc(children: Vec<Box<dyn TexElement>>) -> Group {
@@ -53,6 +58,11 @@ pub fn documentclass<T: IntoTexElement>(
 #[inline]
 pub fn document(children: Vec<Box<dyn TexElement>>) -> BeginEndBlock {
     BeginEndBlock::new("document", OptArgs::default(), Args::default(), children)
+}
+
+/// Creates an enumeration environment.
+pub fn enumerate(children: Vec<Box<dyn TexElement>>) -> BeginEndBlock {
+    BeginEndBlock::new("enumerate", OptArgs::default(), Args::default(), children)
 }
 
 /// Creates a new footnote.
@@ -93,6 +103,23 @@ pub fn hspace<T: IntoTexElement>(space: T) -> MacroCall {
 #[inline]
 pub fn includegraphics<T: IntoTexElement>(options: Vec<Box<dyn TexElement>>, path: T) -> MacroCall {
     MacroCall::new_inline("includegraphics", OptArgs::new(options), Args::single(path))
+}
+
+/// Creates an item environment.
+pub fn item<T: IntoTexElement>(item: T) -> MacroCall {
+    // There seems to be no harm in wrapping the items target into curly braces as an anonymous
+    // grouping, so we reuse `MacroCall` here.
+    MacroCall::new("item", OptArgs::default(), Args::single(item))
+}
+
+/// Creates an item for a description environment.
+pub fn item_d<T: IntoTexElement, U: IntoTexElement>(desc: T, item: U) -> MacroCall {
+    MacroCall::new("item", OptArgs::single(desc), Args::single(item))
+}
+
+/// Creates an itemization environment.
+pub fn itemize(children: Vec<Box<dyn TexElement>>) -> BeginEndBlock {
+    BeginEndBlock::new("itemize", OptArgs::default(), Args::default(), children)
 }
 
 /// Creates a new `minipage` environment.
