@@ -77,6 +77,14 @@ use std::{io, string};
 
 /// Renderable Tex element.
 pub trait TexElement: Debug {
+    /// Type-erases a `TexElement`.
+    fn boxed(self) -> Box<dyn TexElement>
+    where
+        Self: Sized + 'static,
+    {
+        Box::new(self) as Box<dyn TexElement>
+    }
+
     /// Renders the element into a string.
     ///
     /// May return an error if a non-utf8 element has been given.

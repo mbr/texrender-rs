@@ -111,8 +111,8 @@ pub fn minipage<T: IntoTexElement, U: IntoTexElement>(
 }
 
 /// Creates an "empty" element, representing nothing.
-pub fn nothing() -> impl IntoTexElement {
-    ""
+pub fn nothing() -> Box<dyn TexElement> {
+    "".into_tex_element()
 }
 
 /// Creates new, unescaped LaTeX-code.
