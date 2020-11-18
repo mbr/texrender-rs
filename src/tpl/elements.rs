@@ -50,6 +50,15 @@ pub fn document(children: Vec<Box<dyn TexElement>>) -> BeginEndBlock {
     BeginEndBlock::new("document", OptArgs::default(), Args::default(), children)
 }
 
+/// Creates a new footnote.
+pub fn footnote<E: IntoTexElement>(footnote_content: E) -> MacroCall {
+    MacroCall::new(
+        "footnote",
+        OptArgs::default(),
+        Args::single(footnote_content),
+    )
+}
+
 /// Creates a new `figure` environment.
 pub fn figure<T: IntoTexElement>(
     alignment: T,
