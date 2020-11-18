@@ -77,8 +77,13 @@ use std::{io, string};
 
 /// Renderable Tex element.
 pub trait TexElement: Debug {
-    /// Writes a rendering of the element to the given writer.
-    fn write_tex(&self, writer: &mut dyn Write) -> io::Result<()>;
+    /// Type-erases a `TexElement`.
+    fn boxed(self) -> Box<dyn TexElement>
+    where
+        Self: Sized + 'static,
+    {
+        Box::new(self) as Box<dyn TexElement>
+    }
 
     /// Renders the element into a string.
     ///
@@ -89,6 +94,9 @@ pub trait TexElement: Debug {
             .expect("should always be able to write to in-memory buffer");
         String::from_utf8(buffer)
     }
+
+    /// Writes a rendering of the element to the given writer.
+    fn write_tex(&self, writer: &mut dyn Write) -> io::Result<()>;
 }
 
 /// Conversion trait for various types.
