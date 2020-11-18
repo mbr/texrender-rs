@@ -25,6 +25,11 @@ impl Iterator for Nothing {
 /// Ready to use instance of `Nothing`.
 pub const N: Nothing = Nothing;
 
+/// Creates a new cell-coloring instruction (from the `colorx` package).
+pub fn cellcolor<S: Into<String>>(color: S) -> MacroCall {
+    MacroCall::new("cellcolor", OptArgs::default(), Args::single(raw(color)))
+}
+
 /// Creates a new top-level document.
 #[inline]
 pub fn doc(children: Vec<Box<dyn TexElement>>) -> Group {
@@ -103,6 +108,11 @@ pub fn minipage<T: IntoTexElement, U: IntoTexElement>(
         Args::single(width),
         children,
     )
+}
+
+/// Creates an "empty" element, representing nothing.
+pub fn nothing() -> impl IntoTexElement {
+    ""
 }
 
 /// Creates new, unescaped LaTeX-code.
